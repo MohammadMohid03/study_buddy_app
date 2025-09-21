@@ -109,9 +109,10 @@ const generateQuiz = async (req, res) => {
     
     // Prompt engineered to request a specific JSON structure for a quiz
     const prompt = `
-      Based on the following text, generate a multiple-choice quiz with 5 questions.
+      Analyze the following text and act as a helpful study assistant. Your task is to generate a multiple-choice quiz that covers all the main concepts in the text.
+      The number of questions should be proportional to the length and density of the information provided. For a short text with only a few key points, generate 3-4 questions. For a longer, more detailed text, generate between 5 and 10 questions. Your goal is to create a comprehensive review of the material.
       Return the response as a valid JSON array of objects.
-      Each object must have the following keys: "question" (a string), "options" (an array of 4 strings), and "correctAnswer" (a string that exactly matches one of the options).
+      Each object must have the following keys: "question" (a string), "options" (an array of exactly 4 strings), and "correctAnswer" (a string that exactly matches one of the options).
       Do NOT include any text outside of the JSON array itself.
 
       Text: """
