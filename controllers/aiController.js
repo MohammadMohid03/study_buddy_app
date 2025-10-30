@@ -3,6 +3,13 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 // Initialize the Google Generative AI client with the API key from our .env file
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Log API key status on startup
+if (!process.env.GEMINI_API_KEY) {
+  console.error('⚠️  GEMINI_API_KEY is not set in .env file!');
+} else {
+  console.log('✓ Gemini API key loaded:', process.env.GEMINI_API_KEY.substring(0, 10) + '...');
+}
+
 // @desc    Generate flashcards from a note's content
 // @route   POST /api/ai/flashcards
 // @access  Private
@@ -16,7 +23,7 @@ const generateFlashcards = async (req, res) => {
     }
 
     // 2. Select the Gemini model we want to use
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // 3. This is the "prompt" - our instructions to the AI
     const prompt = `
@@ -52,8 +59,14 @@ const flashcards = JSON.parse(jsonArrayString); // Parse only the extracted arra
     res.status(200).json(flashcards);
 
   } catch (error) {
-    console.error('Error generating flashcards:', error);
-    res.status(500).json({ message: 'Failed to generate flashcards from AI service' });
+    console.error('Error generating flashcards:', error.message);
+    if (error.message.includes('API_KEY_INVALID')) {
+      return res.status(401).json({ message: 'Invalid API key. Please check your Gemini API key.' });
+    }
+    if (error.message.includes('404')) {
+      return res.status(503).json({ message: 'Gemini API model not available. The API key may be invalid or expired.' });
+    }
+    res.status(500).json({ message: 'Failed to generate flashcards from AI service', error: error.message });
   }
 };
 // =================================================================
@@ -73,7 +86,7 @@ const generateChatResponse = async (req, res) => {
     }
 
     // 2. Select the model
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     
     // 3. This is our "system prompt" or persona for the AI
     const prompt = `
@@ -93,8 +106,14 @@ const generateChatResponse = async (req, res) => {
     res.status(200).json({ reply: text });
 
   } catch (error) {
-    console.error('Error in AI chat:', error);
-    res.status(500).json({ message: 'Failed to get response from AI tutor' });
+    console.error('Error in AI chat:', error.message);
+    if (error.message.includes('API_KEY_INVALID')) {
+      return res.status(401).json({ message: 'Invalid API key. Please check your Gemini API key.' });
+    }
+    if (error.message.includes('404')) {
+      return res.status(503).json({ message: 'Gemini API model not available. The API key may be invalid or expired.' });
+    }
+    res.status(500).json({ message: 'Failed to get response from AI tutor', error: error.message });
   }
 };
 
@@ -105,7 +124,7 @@ const generateQuiz = async (req, res) => {
       return res.status(400).json({ message: 'Note text is required' });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     
     // Prompt engineered to request a specific JSON structure for a quiz
     const prompt = `
@@ -137,14 +156,20 @@ const generateQuiz = async (req, res) => {
     res.status(200).json(quiz);
 
   } catch (error) {
-    console.error('Error generating quiz:', error);
-    res.status(500).json({ message: 'Failed to generate quiz from AI service' });
+    console.error('Error generating quiz:', error.message);
+    if (error.message.includes('API_KEY_INVALID')) {
+      return res.status(401).json({ message: 'Invalid API key. Please check your Gemini API key.' });
+    }
+    if (error.message.includes('404')) {
+      return res.status(503).json({ message: 'Gemini API model not available. The API key may be invalid or expired.' });
+    }
+    res.status(500).json({ message: 'Failed to generate quiz from AI service', error: error.message });
   }
 };
 
 // NEW, EXPORTABLE FUNCTION
 const generateNoteFromText = async (text) => {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
   const prompt = `
     Analyze the following text. Your task is to act as a study assistant and create a concise and well-structured note from it.
     Generate a response as a valid JSON object with two keys: "title" and "content".
