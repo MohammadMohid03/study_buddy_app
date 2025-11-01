@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getToken } from '../utils/secureStore'; // 1. Import getToken
 
-const API_BASE_URL = 'http://192.168.100.64:5001/api'; // Use your IP
+const API_BASE_URL = 'https://study-buddy-app-psi.vercel.app/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

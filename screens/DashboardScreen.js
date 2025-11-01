@@ -1,83 +1,92 @@
 import React, { useState, useCallback, useLayoutEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import * as DocumentPicker from 'expo-document-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
+import { Brain, BookOpen, Sparkles, Upload, Plus, LogOut } from 'lucide-react-native';
 import apiClient from '../api/axiosConfig';
-import { removeToken } from '../utils/secureStore'; // <-- 1. IMPORT removeToken
-import { Ionicons } from '@expo/vector-icons'; // 2. Import icons
-import * as DocumentPicker from 'expo-document-picker'; // 1. Import document picker
+import { removeToken } from '../utils/secureStore';
+import { getErrorMessage } from '../utils/errorHandler';
+import FloatingIcon from '../components/FloatingIcons';
 
 const DashboardScreen = ({ navigation }) => {
   const [notes, setNotes] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
 
+  // --- LOGIC ---
 
-  // 3. CREATE THE LOGOUT FUNCTION
   const handleLogout = async () => {
     await removeToken();
     navigation.reset({
       index: 0,
-      routes: [{ name: 'Login' }],
+      routes: [{ name: 'Auth' }],
     });
   };
 
-  // 4. SET UP THE HEADER BUTTON
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity onPress={handleLogout} style={{ marginRight: 15 }}>
-          <Ionicons name="log-out-outline" size={28} color="#007BFF" />
+          <LogOut size={24} color="white" />
         </TouchableOpacity>
       ),
+      headerStyle: {
+        backgroundColor: 'transparent',
+      },
+      headerTransparent: true,
+      headerTintColor: 'white',
+      headerTitleStyle: {
+        color: 'white',
+        fontWeight: 'bold',
+      },
     });
   }, [navigation]);
 
-  // Function to fetch notes from the server
   const fetchNotes = async () => {
-    setLoading(true);
+    if (!isRefreshing) {
+      setLoading(true);
+    }
     setError('');
     try {
       const response = await apiClient.get('/notes');
       setNotes(response.data);
     } catch (err) {
-      console.error('Failed to fetch notes:', err);
-      setError('Failed to load notes. Please try again.');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
-  
-  // useFocusEffect is a hook from React Navigation that runs the effect
-  // every time the user focuses on (navigates to) this screen.
-  useFocusEffect(
-    useCallback(() => {
-      fetchNotes();
-    }, [])
-  );
-  
-  // Component to render for each item in the list
-  const renderNote = ({ item }) => (
-    // WRAP the View in a TouchableOpacity
-    <TouchableOpacity onPress={() => navigation.navigate('NoteDetail', { note: item })}>
-      <View style={styles.noteItem}>
-        <Text style={styles.noteTitle}>{item.title}</Text>
-      </View>
-    </TouchableOpacity>
-  );
 
-  // 2. NEW FUNCTION for handling PDF upload
+  useFocusEffect(useCallback(() => { fetchNotes(); }, []));
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchNotes();
+  };
+
   const handlePdfUpload = async () => {
     try {
-      // Open the document picker
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/pdf',
       });
 
       if (!result.canceled) {
-        setLoading(true); // Show a loading spinner
+        setLoading(true);
         const pdfAsset = result.assets[0];
 
-        // 3. Create FormData to send the file
         const formData = new FormData();
         formData.append('pdf', {
           uri: pdfAsset.uri,
@@ -85,106 +94,278 @@ const DashboardScreen = ({ navigation }) => {
           type: pdfAsset.mimeType,
         });
 
-        // 4. Make the API call with the correct headers for a file upload
         await apiClient.post('/notes/upload-pdf', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
         
-        // 5. Refresh the notes list
-        fetchNotes(); 
+        fetchNotes();
       }
     } catch (error) {
-      console.error('PDF Upload Error:', error);
-      Alert.alert('Error', 'Failed to upload and process PDF.');
-    } finally {
       setLoading(false);
+      Alert.alert('Upload Failed', getErrorMessage(error));
     }
   };
 
+  // --- RENDER LOGIC ---
+
+  const renderNote = ({ item }) => (
+    <TouchableOpacity onPress={() => navigation.navigate('NoteDetail', { note: item })}>
+      <BlurView intensity={15} tint="dark" style={styles.noteItem}>
+        <Text style={styles.noteTitle}>{item.title}</Text>
+      </BlurView>
+    </TouchableOpacity>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#1e1b4b', '#4c1d95', '#be185d']}
+          style={StyleSheet.absoluteFill}
+        />
+        
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <FloatingIcon icon={Brain} size={24} style={{ position: 'absolute', top: '20%', left: '10%' }} delay={0} />
+          <FloatingIcon icon={BookOpen} size={20} style={{ position: 'absolute', top: '30%', right: '15%' }} delay={1500} />
+          <FloatingIcon icon={Sparkles} size={22} style={{ position: 'absolute', bottom: '40%', left: '20%' }} delay={3000} />
+        </View>
+
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="white" />
+          <Text style={styles.loadingText}>Loading Notes...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (error && notes.length === 0) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#1e1b4b', '#4c1d95', '#be185d']}
+          style={StyleSheet.absoluteFill}
+        />
+        
+        <View style={styles.centered}>
+          <BlurView intensity={20} tint="dark" style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={fetchNotes} style={styles.retryButton}>
+              <Text style={styles.retryText}>Tap to retry</Text>
+            </TouchableOpacity>
+          </BlurView>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {loading ? (
-        <ActivityIndicator size="large" color="#007BFF" />
-      ) : error ? (
-        <Text style={styles.errorText}>{error}</Text>
-      ) : (
+      {/* Background */}
+      <LinearGradient
+        colors={['#1e1b4b', '#4c1d95', '#be185d']}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      {/* Floating background icons */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <FloatingIcon icon={Brain} size={24} style={{ position: 'absolute', top: '15%', left: '8%' }} delay={0} />
+        <FloatingIcon icon={BookOpen} size={20} style={{ position: 'absolute', top: '25%', right: '12%' }} delay={2000} />
+        <FloatingIcon icon={Sparkles} size={22} style={{ position: 'absolute', bottom: '35%', left: '15%' }} delay={4000} />
+        <FloatingIcon icon={BookOpen} size={18} style={{ position: 'absolute', bottom: '20%', right: '10%' }} delay={6000} />
+      </View>
+
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.logoContainer}>
+          <Brain color="white" size={28} />
+        </View>
+        <Text style={styles.title}>My Notes</Text>
+        <Text style={styles.subtitle}>Your learning journey continues</Text>
+      </View>
+
+      {/* Notes List */}
+      <View style={styles.contentContainer}>
         <FlatList
           data={notes}
           renderItem={renderNote}
           keyExtractor={(item) => item._id}
-          ListEmptyComponent={<Text style={styles.emptyText}>No notes found. Create one!</Text>}
+          onRefresh={handleRefresh}
+          refreshing={isRefreshing}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            !loading && (
+              <BlurView intensity={15} tint="dark" style={styles.emptyContainer}>
+                <BookOpen color="rgba(255,255,255,0.7)" size={48} />
+                <Text style={styles.emptyText}>No notes found. Create one!</Text>
+              </BlurView>
+            )
+          }
         />
-      )}
+      </View>
       
-      {/* Floating Action Button to create a new note */}
-       <TouchableOpacity 
-        style={[styles.fab, { right: 100 }]} // Position it next to the other one
+      {/* Floating Action Buttons - Positioned above tab bar */}
+      <TouchableOpacity 
+        style={[styles.fab, styles.uploadFab]}
         onPress={handlePdfUpload}
       >
-        <Ionicons name="cloud-upload-outline" size={28} color="white" />
+        <LinearGradient
+          colors={['#06b6d4', '#0891b2']}
+          style={styles.fabGradient}
+        >
+          <Upload size={24} color="white" />
+        </LinearGradient>
       </TouchableOpacity>
 
       <TouchableOpacity 
         style={styles.fab}
         onPress={() => navigation.navigate('NoteEditor')}
       >
-        <Text style={styles.fabIcon}>+</Text>
+        <LinearGradient
+          colors={['#a855f7', '#9333ea']}
+          style={styles.fabGradient}
+        >
+          <Plus size={28} color="white" />
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
 };
 
+// --- STYLES ---
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9f9f9',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  header: {
+    alignItems: 'center',
+    paddingTop: 100,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+  },
+  logoContainer: {
+    width: 56,
+    height: 56,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  listContent: {
+    paddingBottom: 140, // Increased to account for FABs + tab bar
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
   },
   noteItem: {
-    backgroundColor: '#ffffff',
     padding: 20,
-    marginVertical: 8,
-    marginHorizontal: 16,
-    borderRadius: 10,
-    elevation: 2, // Shadow for Android
-    shadowColor: '#000', // Shadow for iOS
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.22,
-    shadowRadius: 2.22,
+    marginVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
   },
   noteTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: 'white',
   },
   fab: {
     position: 'absolute',
-    width: 60,
-    height: 60,
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    right: 30,
-    bottom: 30,
-    backgroundColor: '#007BFF',
-    borderRadius: 30,
+    right: 20,
+    bottom: 85, // Positioned above the 65px tab bar with some spacing
+    borderRadius: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
   },
-  fabIcon: {
-    fontSize: 30,
-    color: 'white',
+  uploadFab: {
+    right: 90, // Positioned next to the main FAB
+  },
+  fabGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorContainer: {
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    maxWidth: 300,
+    overflow: 'hidden',
   },
   errorText: {
     textAlign: 'center',
-    marginTop: 20,
     fontSize: 16,
-    color: 'red',
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: 16,
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#a855f7',
+  },
+  retryText: {
+    fontSize: 16,
+    color: 'white',
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    padding: 40,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    marginTop: 40,
+    overflow: 'hidden',
   },
   emptyText: {
     textAlign: 'center',
-    marginTop: 50,
-    fontSize: 18,
-    color: '#888',
+    marginTop: 16,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
   },
 });
 
