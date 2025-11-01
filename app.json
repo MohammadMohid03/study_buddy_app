@@ -1,10 +1,37 @@
 {
-  "plugins": [
-    "expo-secure-store"
-  ],
-  "extra": {
-    "eas": {
-      "projectId": "fa74ef93-75ae-46e7-af5b-368ccc8083d8"
+  "expo": {
+    "name": "Study Buddy",
+    "slug": "study_buddy_app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1e1b4b"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1e1b4b"
+      },
+      "package": "com.mohid_asmat.study_buddy_app",
+      "versionCode": 1
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "fa74ef93-75ae-46e7-af5b-368ccc8083d8"
+      }
     }
   }
 }
