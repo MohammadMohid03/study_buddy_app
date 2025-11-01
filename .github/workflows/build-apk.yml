@@ -40,10 +40,9 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Build Android APK with EAS
-        run: eas build --platform android --profile preview --non-interactive
-
-      - name: Build completed
-        if: success()
         run: |
-          echo "✅ Build completed successfully!"
-          echo "📦 Download your APK from: https://expo.dev/accounts/mohid_asmat/projects/study_buddy_app/builds"
+          eas build --platform android --profile preview --non-interactive --no-wait
+          echo "✅ Build submitted to EAS!"
+          echo "📦 Check build status at: https://expo.dev/accounts/mohid_asmat/projects/study_buddy_app/builds"
+          echo ""
+          echo "The build will take 5-10 minutes. Download the APK when ready from the link above."
