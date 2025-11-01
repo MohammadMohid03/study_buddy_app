@@ -21,19 +21,29 @@ jobs:
         with:
           node-version: 18
 
-      - name: Setup Expo
+      - name: Setup Expo and EAS CLI
         uses: expo/expo-github-action@v8
         with:
-          expo-version: latest
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Install dependencies
-        run: npm install
+      - name: Check for EXPO_TOKEN
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "Error: EXPO_TOKEN secret is not set!"
+            echo "Please add your Expo token to GitHub Secrets"
+            echo "Visit: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            exit 1
+          fi
 
-      - name: Build Android APK
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build Android APK with EAS
         run: eas build --platform android --profile preview --non-interactive
 
-      - name: Comment on success
+      - name: Build completed
         if: success()
-        run: echo "Build completed! Download the APK from https://expo.dev"
+        run: |
+          echo "✅ Build completed successfully!"
+          echo "📦 Download your APK from: https://expo.dev/accounts/mohid_asmat/projects/study_buddy_app/builds"
