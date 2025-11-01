@@ -4,9 +4,9 @@ on:
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
   push:
     branches:
-      - main
+      - master
     paths:
-      - 'study_buddy_app/**'
+      - '**'
 
 jobs:
   build:
@@ -29,17 +29,11 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        working-directory: ./study_buddy_app
         run: npm install
 
       - name: Build Android APK
-        working-directory: ./study_buddy_app
-        run: eas build --platform android --profile preview --non-interactive --no-wait
+        run: eas build --platform android --profile preview --non-interactive
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v3
+      - name: Comment on success
         if: success()
-        with:
-          name: app-release.apk
-          path: ./study_buddy_app/*.apk
-          retention-days: 30
+        run: echo "Build completed! Download the APK from https://expo.dev"
